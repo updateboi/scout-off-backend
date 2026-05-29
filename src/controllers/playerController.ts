@@ -24,6 +24,16 @@ export async function registerPlayer(req: Request, res: Response, next: NextFunc
   try {
     const { wallet, position, region, metadata } = registerSchema.parse(req.body);
     const cid = await pinJson({ wallet, position, region, ...metadata });
+    const callerWallet = (req as any).account;
+    console.log(
+      JSON.stringify({
+        event: 'player_registration',
+        wallet,
+        region,
+        position,
+        callerWallet: callerWallet || null,
+      })
+    );
     const body: ApiResponse<{ metadataUri: string; gatewayUrl: string }> = {
       success: true,
       data: { metadataUri: cid, gatewayUrl: gatewayUrl(cid) },

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { pinJson } from '../services/ipfs';
 import { getEvents } from '../services/indexer';
+import { PlayerMilestone } from '../types';
 
 const milestoneSchema = z.object({
   playerId: z.string().min(1),
@@ -36,7 +37,13 @@ export async function getPendingMilestones(req: Request, res: Response, next: Ne
     let pending = submitted.filter((m) => !approvedIds.has(m.milestone_id));
     if (region) pending = pending.filter((m) => m.region === region);
     if (playerId) pending = pending.filter((m) => m.playerId === playerId || m.player_id === playerId);
-    res.json({ success: true, data: pending });
+    const milestones: PlayerMilestone[] = pending.map((m) => ({
+      status: 'pending' as const,
+      approvedBy: m.validator as string || '',
+      submittedAt: m.created_at as number || Math.floor(Date.now() / 1000),
+      evidenceUri: m.evidence_uri as string || m.evidenceUri as string || '',
+    }));
+    res.json({ success: true, data: milestones });
   } catch (err) {
     next(err);
   }
