@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { pinJson, gatewayUrl } from '../services/ipfs';
 import { getEvents } from '../services/indexer';
+import * as cache from '../services/cache';
 import { ApiResponse } from '../types';
 
 const registerSchema = z.object({
