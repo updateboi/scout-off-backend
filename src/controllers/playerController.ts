@@ -65,8 +65,30 @@ export async function filterPlayers(req: Request, res: Response, next: NextFunct
     if (position) players = players.filter((p) => p.position === position);
     if (minTier !== undefined)
       players = players.filter((p) => Number(p.progress_level) >= minTier);
+    const total = players.length;
+    const pages = Math.ceil(total / pageSize);
     const paginated = players.slice((page - 1) * pageSize, page * pageSize);
-    res.json({ success: true, data: paginated, total: players.length, page, pageSize });
+    res.json({ success: true, data: paginated, total, page, pageSize, pages });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PUT /api/players/:playerId
+ * Required permissions: caller must be the profile owner (JWT sub === playerId).
+ * Stub — returns 202 Accepted until on-chain update is wired.
+ */
+export const updatePlayerSchema = z.object({
+  position: z.string().min(1).optional(),
+  region: z.string().min(1).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export async function updatePlayer(req: Request, res: Response, next: NextFunction) {
+  try {
+    updatePlayerSchema.parse(req.body);
+    res.status(202).json({ success: true, message: 'Profile update accepted' });
   } catch (err) {
     next(err);
   }
