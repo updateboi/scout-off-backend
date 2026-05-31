@@ -1,4 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
+import { sanitizeInput } from '../utils/sanitizer';
+import { sanitizeInput } from '../utils/sanitizer';
 import { z } from 'zod';
 import { pinJson, gatewayUrl } from '../services/ipfs';
 import { getEvents } from '../services/indexer';
@@ -24,7 +25,9 @@ export const filterSchema = z.object({
 export async function registerPlayer(req: Request, res: Response, next: NextFunction) {
   try {
     const { wallet, position, region, metadata } = registerSchema.parse(req.body);
-    const cid = await pinJson({ wallet, position, region, ...metadata });
+    const sanitizedPosition = sanitizeInput(position);
+    const sanitizedRegion = sanitizeInput(region);
+    const cid = await pinJson({ wallet, position: sanitizedPosition, region: sanitizedRegion, ...metadata });
     // Invalidate player search cache so new profile appears in results
     invalidatePlayerCache();
     const body: ApiResponse<{ metadataUri: string; gatewayUrl: string }> = {
@@ -40,8 +43,9 @@ export async function registerPlayer(req: Request, res: Response, next: NextFunc
 /** GET /api/players/:playerId */
 export async function getPlayer(req: Request, res: Response, next: NextFunction) {
   try {
+    const playerId = sanitizeInput(req.params.playerId);
     const events = getEvents('player_registered').filter(
-      (e) => e.payload.player_id === req.params.playerId
+      (e) => e.payload.player_id === playerId
     );
     if (!events.length) {
       res.status(404).json({ success: false, error: 'Player not found' });
@@ -60,9 +64,11 @@ export async function getPlayer(req: Request, res: Response, next: NextFunction)
 export async function filterPlayers(req: Request, res: Response, next: NextFunction) {
   try {
     const { region, position, minTier, page, pageSize } = filterSchema.parse(req.query);
+    const sanitizedRegion = region ? sanitizeInput(region) : undefined;
+    const sanitizedPosition = position ? sanitizeInput(position) : undefined;
     let players = getEvents('player_registered').map((e) => e.payload);
-    if (region) players = players.filter((p) => p.region === region);
-    if (position) players = players.filter((p) => p.position === position);
+    if (sanitizedRegion) players = players.filter((p) => p.region === sanitizedRegion);
+    if (sanitizedPosition) players = players.filter((p) => p.position === sanitizedPosition);
     if (minTier !== undefined)
       players = players.filter((p) => Number(p.progress_level) >= minTier);
     const paginated = players.slice((page - 1) * pageSize, page * pageSize);
