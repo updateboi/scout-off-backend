@@ -53,3 +53,16 @@ export async function submitContactPayment(
     status: 'submitted',
   };
 }
+
+/**
+ * Simple health probe for the Stellar/Soroban RPC.
+ * Returns true when the RPC responds; false otherwise.
+ */
+export async function stellarHealth(): Promise<boolean> {
+  try {
+    await getLatestLedger();
+    return true;
+  } catch {
+    return false;
+  }
+}
