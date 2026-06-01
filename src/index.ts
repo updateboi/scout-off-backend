@@ -19,6 +19,7 @@ const app = express();
 app.use(cors());
 app.use(correlationId);
 app.use(securityHeaders);
+app.use(responseTime);
 app.use(express.json());
 
 app.get('/health', async (_req, res) => {
