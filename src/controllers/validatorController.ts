@@ -1,15 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { logger } from '../utils/logger';
 import { pinJson } from '../services/ipfs';
 import { getEvents } from '../services/indexer';
 import { invalidateMilestoneCache } from '../services/cache';
 import { PlayerMilestone } from '../types';
-import { recordAudit } from '../utils/audit';
+import { logger } from '../utils/logger';
+
+import { CID_REGEX } from '../utils/cidValidator';
 
 export const milestoneSchema = z.object({
   playerId: z.string().min(1),
   milestoneType: z.enum(['identity', 'performance', 'trial_offer']),
-  evidenceUri: z.string().min(1),
+  evidenceUri: z.string().regex(CID_REGEX, 'evidenceUri must be a valid IPFS CID'),
 });
 
 export const pendingQuerySchema = z.object({
@@ -19,7 +22,7 @@ export const pendingQuerySchema = z.object({
 
 /** POST /api/validators/milestone */
 function getCorrelationId(req: Request): string {
-  return String(req.headers['x-correlation-id'] ?? req.headers['correlation-id'] ?? 'none');
+  return String(req.headers?.['x-correlation-id'] ?? req.headers?.['correlation-id'] ?? 'none');
 }
 
 export async function submitMilestoneEvidence(req: Request, res: Response, next: NextFunction) {
