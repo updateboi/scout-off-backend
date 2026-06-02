@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { getStats, getAllEvents, getFeeSummary, registerValidator, revokeValidator, pauseContract, unpauseContract } from '../controllers/adminController';
+import { getStats, getAllEvents, getFeeSummary, registerValidator, revokeValidator, pauseContract, unpauseContract, adminDateRangeSchema } from '../controllers/adminController';
 import { introspectToken } from '../controllers/adminController';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { validateQuery } from '../middleware/validate';
 
 const router = Router();
 
@@ -19,21 +20,25 @@ router.get('/stats', requireRole('admin'), getStats);
  * GET /api/admin/events
  *
  * Returns all indexed Soroban contract events in insertion order.
+ * Query params: startDate, endDate (ISO 8601), eventType
  *
  * @response 200 { success: true, data: AdminEvent[] }
+ * @response 400 { success: false, error: string } - Invalid date range
  * @auth Bearer (any authenticated user)
  */
-router.get('/events', requireAuth, getAllEvents);
+router.get('/events', requireAuth, validateQuery(adminDateRangeSchema), getAllEvents);
 
 /**
  * GET /api/admin/fees
  *
  * Returns a list of fee withdrawal events from the contract.
+ * Query params: startDate, endDate (ISO 8601)
  *
  * @response 200 { success: true, data: FeeHistoryItem[] }
+ * @response 400 { success: false, error: string } - Invalid date range
  * @auth Bearer (any authenticated user)
  */
-router.get('/fees', requireAuth, getFeeSummary);
+router.get('/fees', requireAuth, validateQuery(adminDateRangeSchema), getFeeSummary);
 
 /**
  * POST /api/admin/validators/register
