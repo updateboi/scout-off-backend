@@ -25,16 +25,29 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
   }
 }
 
-const eventsQuerySchema = z.object({
+const isoDateString = z
+  .string()
+  .refine((v) => !isNaN(Date.parse(v)), { message: 'Must be a valid ISO 8601 date string' })
+  .transform((v) => new Date(v));
+
+/** Exported so routes can apply validateQuery(adminDateRangeSchema) */
+export const adminDateRangeSchema = z.object({
+  startDate: isoDateString.optional(),
+  endDate: isoDateString.optional(),
   eventType: z.string().optional(),
-  startDate: z.coerce.number().optional(),
-  endDate: z.coerce.number().optional(),
-});
+}).refine(
+  (d) => !(d.startDate && d.endDate && d.startDate > d.endDate),
+  { message: 'startDate must not be after endDate' }
+);
 
 /** GET /api/admin/events */
 export async function getAllEvents(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = getEvents() as unknown as EventRecord[];
+    const { startDate, endDate, eventType } = (req as any).query as z.infer<typeof adminDateRangeSchema>;
+    let events = getEvents() as unknown as EventRecord[];
+    if (eventType) events = events.filter((e: any) => e.type === eventType);
+    if (startDate) events = events.filter((e: any) => new Date(e.timestamp ?? e.created_at ?? 0) >= startDate!);
+    if (endDate) events = events.filter((e: any) => new Date(e.timestamp ?? e.created_at ?? 0) <= endDate!);
     const body: ApiResponse<EventRecord[]> = { success: true, data: events };
     res.json(body);
   } catch (err) {
