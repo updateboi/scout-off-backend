@@ -220,6 +220,46 @@ The following dependencies require extra scrutiny during updates due to their se
 - ✅ Avoid deprecated packages in `npm audit`
 - ❌ Do NOT use `npm install --force` or `--legacy-peer-deps` without justification
 
+### Reviewing Deprecated Dependencies
+
+When you encounter a deprecated package or see warnings during audit:
+
+1. **Identify Deprecation Reason**
+   ```bash
+   npm info <package-name>
+   ```
+   Check for:
+   - `deprecated` field (shows deprecation message)
+   - No activity in past 12+ months
+   - Known security vulnerabilities
+   - Better alternatives available
+
+2. **Evaluate Replacement Options**
+   - Research recommended alternatives on npm
+   - Check GitHub for active maintenance (recent commits, open issues)
+   - Verify API compatibility with current usage
+   - Consider migration effort vs. risk
+
+3. **Migration Strategy**
+   - Create a new issue to track the deprecation
+   - Plan migration in a feature branch (e.g., `chore/replace-deprecated-package`)
+   - Update one deprecated package at a time to isolate issues
+   - Run full test suite after each replacement
+   - Document any API changes in commit message
+
+4. **Examples of Recently Handled Deprecations**
+   | Old Package | Reason | Replacement | Status |
+   |-------------|--------|-------------|--------|
+   | `node-fetch@2` | Deprecated in favor of native fetch | native `fetch` or `axios` | Migration in progress |
+   | Specific older packages | No longer maintained | Actively maintained fork | Queued for review |
+
+5. **Security Review Checklist for Deprecated Packages**
+   - [ ] Check CVE databases (NVD, Snyk, npm audit)
+   - [ ] Review open security issues in GitHub
+   - [ ] Verify no direct secrets/tokens in deprecation warnings
+   - [ ] Document any interim workarounds
+   - [ ] Set migration deadline (if package has known exploits)
+
 ### Reporting Security Issues
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
