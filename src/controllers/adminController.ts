@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import { getEvents } from '../services/indexer';
-import { AdminEvent, FeeHistoryItem, ApiResponse } from '../types';
+import { AdminEvent, FeeHistoryItem, ApiResponse, EventRecord } from '../types';
 import { logAuditEvent } from '../services/audit';
 import config from '../config';
 
@@ -29,14 +29,23 @@ const eventsQuerySchema = z.object({
   eventType: z.string().optional(),
   startDate: z.coerce.number().optional(),
   endDate: z.coerce.number().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 /** GET /api/admin/events */
 export async function getAllEvents(req: Request, res: Response, next: NextFunction) {
   try {
-    const events = getEvents() as unknown as EventRecord[];
-    const body: ApiResponse<EventRecord[]> = { success: true, data: events };
-    res.json(body);
+    const parsed = eventsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+      return;
+    }
+    const { limit, offset } = parsed.data;
+    const all = getEvents() as unknown as EventRecord[];
+    const total = all.length;
+    const data = all.slice(offset, offset + limit);
+    res.json({ success: true, data, total, limit, offset });
   } catch (err) {
     next(err);
   }
