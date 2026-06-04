@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import { getEvents } from '../services/indexer';
-import { AdminEvent, FeeHistoryItem, ApiResponse } from '../types';
+import { AdminEvent, FeeHistoryItem, ApiResponse, EventRecord } from '../types';
 import { logAuditEvent } from '../services/audit';
 import config from '../config';
 
