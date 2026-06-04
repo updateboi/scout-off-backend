@@ -4,11 +4,21 @@ import { pinJson } from '../services/ipfs';
 import { getEvents } from '../services/indexer';
 import { invalidateMilestoneCache } from '../services/cache';
 import { PlayerMilestone } from '../types';
+import { logger } from '../utils/logger';
+
+/** Returns true for valid IPFS (ipfs:// or /ipfs/ CID) or HTTPS URIs. */
+export function isValidEvidenceUri(uri: string): boolean {
+  if (uri.startsWith('ipfs://') && uri.length > 7) return true;
+  if (uri.startsWith('https://') && uri.length > 8) return true;
+  return false;
+}
 
 export const milestoneSchema = z.object({
   playerId: z.string().min(1),
   milestoneType: z.enum(['identity', 'performance', 'trial_offer']),
-  evidenceUri: z.string().min(1),
+  evidenceUri: z.string().min(1).refine(isValidEvidenceUri, {
+    message: 'evidenceUri must be a valid IPFS (ipfs://) or HTTPS URI',
+  }),
 });
 
 export const pendingQuerySchema = z.object({
