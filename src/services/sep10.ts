@@ -56,6 +56,7 @@ export function extractAccount(xdr: string): string | null {
 
 /**
  * Verify the client-signed challenge XDR and issue a JWT.
+ * Validates both the structure of the challenge and the client's signature.
  */
 export function verifyAndIssueToken(xdr: string, role?: string): { token: string; account: string } {
   const network =
@@ -63,9 +64,40 @@ export function verifyAndIssueToken(xdr: string, role?: string): { token: string
 
   const tx = new Transaction(xdr, network);
 
-  // The first operation's source is the client account
-  const clientAccountId = tx.operations[0].source;
-  if (!clientAccountId) throw new Error('Missing source account in challenge');
+  // Validate challenge transaction structure
+  if (!tx.operations || tx.operations.length === 0) {
+    throw new Error('Invalid challenge: no operations found');
+  }
+
+  const op = tx.operations[0];
+
+  // 1. Verify the first operation is manageData
+  if (op.type !== 'manageData') {
+    throw new Error('Invalid challenge: expected manageData operation');
+  }
+
+  // 2. Verify the operation name matches the expected server string
+  const manageDataOp = op as Operation.ManageData;
+  if (manageDataOp.name !== 'scoutoff auth') {
+    throw new Error('Invalid challenge: wrong operation name');
+  }
+
+  // 3. Verify the nonce value is present and properly formatted (64-byte base64)
+  if (!manageDataOp.value) {
+    throw new Error('Invalid challenge: missing nonce value');
+  }
+
+  const nonceBase64 = manageDataOp.value.toString('base64');
+  // A 64-byte value in base64 encodes to 88 characters (64 * 4/3)
+  if (nonceBase64.length !== 88) {
+    throw new Error('Invalid challenge: nonce must be exactly 64 bytes');
+  }
+
+  // 4. Verify the operation's source is the client account
+  const clientAccountId = manageDataOp.source;
+  if (!clientAccountId) {
+    throw new Error('Missing source account in challenge');
+  }
 
   // Verify the client signed it
   const clientKeypair = Keypair.fromPublicKey(clientAccountId);
