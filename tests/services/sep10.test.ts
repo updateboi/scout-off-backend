@@ -1,5 +1,6 @@
 import { buildChallenge, verifyAndIssueToken } from '../../src/services/sep10';
-import { Keypair, Transaction, Networks, TransactionBuilder, BASE_FEE, Operation, Account } from '@stellar/stellar-sdk';
+import crypto from 'crypto';
+import { Keypair, Transaction, Networks, TransactionBuilder, BASE_FEE, Operation, Account, Asset } from '@stellar/stellar-sdk';
 import config from '../../src/config';
 
 const clientKeypair = Keypair.random();
@@ -57,10 +58,7 @@ describe('sep10', () => {
           Operation.payment({
             destination: serverKeypair.publicKey(),
             amount: '1',
-            asset: {
-              code: 'TESTCOIN',
-              issuer: serverKeypair.publicKey(),
-            },
+            asset: new Asset('TESTCOIN', serverKeypair.publicKey()),
             source: clientKeypair.publicKey(),
           })
         )
@@ -156,7 +154,7 @@ describe('sep10', () => {
         .addOperation(
           Operation.manageData({
             name: 'scoutoff auth',
-            value: Buffer.from(Keypair.random().rawPublicKey()).toString('base64'),
+            value: crypto.randomBytes(48).toString('base64'),
             // No source specified - defaults to undefined
           })
         )

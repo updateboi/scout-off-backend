@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   Keypair,
   Networks,
@@ -28,7 +29,7 @@ export function buildChallenge(accountId: string): string {
     .addOperation(
       Operation.manageData({
         name: 'scoutoff auth',
-        value: Buffer.from(Keypair.random().rawPublicKey()).toString('base64'),
+        value: crypto.randomBytes(48).toString('base64'),
         source: accountId,
       })
     )
