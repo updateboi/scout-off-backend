@@ -16,6 +16,14 @@ const CHALLENGE_TTL_SECONDS = 300; // 5 min to sign the challenge
 const TOKEN_TTL_SECONDS = 86400;   // 24 h JWT validity
 
 /**
+ * Returns the server keypair used for signing challenges.
+ * Exposed for verification logic and testing.
+ */
+export function getServerKeypair(): Keypair {
+  return SERVER_KEYPAIR;
+}
+
+/**
  * Build a SEP-10 challenge transaction.
  * The client must sign it with their Stellar keypair and return the XDR.
  */
@@ -112,18 +120,28 @@ export function verifyAndIssueToken(xdr: string, role?: string): { token: string
     throw new Error('Missing source account in challenge');
   }
 
-  // 5. Cryptographically verify the client signed the transaction
+  // 5. Verify the server signed the challenge (proves it was built by this server)
+  // Per SEP-10, the challenge must originate from the server keypair
+  const serverSigned = tx.signatures.some((sig) => {
+    try {
+      return SERVER_KEYPAIR.verify(tx.hash(), sig.signature());
+    } catch {
+      return false;
+    }
+  });
+  if (!serverSigned) throw new Error('Challenge not signed by server');
+
+  // 6. Cryptographically verify the client signed the transaction
   // Using Keypair.verify() for proper ECDSA signature validation per SEP-10
   const clientKeypair = Keypair.fromPublicKey(clientAccountId);
-  const valid = tx.signatures.some((sig) => {
+  const clientSigned = tx.signatures.some((sig) => {
     try {
       return clientKeypair.verify(tx.hash(), sig.signature());
     } catch {
       return false;
     }
   });
-
-  if (!valid) throw new Error('Invalid challenge signature');
+  if (!clientSigned) throw new Error('Invalid challenge signature');
 
   // Issue JWT with client account and role
   const token = jwt.sign({ sub: clientAccountId, role: role ?? 'player' }, config.jwtSecret, {

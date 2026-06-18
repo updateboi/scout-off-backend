@@ -1,4 +1,4 @@
-import { buildChallenge, verifyAndIssueToken } from '../../src/services/sep10';
+import { buildChallenge, verifyAndIssueToken, getServerKeypair } from '../../src/services/sep10';
 import crypto from 'crypto';
 import { Keypair, Transaction, Networks, TransactionBuilder, BASE_FEE, Operation, Account, Asset } from '@stellar/stellar-sdk';
 import config from '../../src/config';
@@ -26,6 +26,33 @@ describe('sep10', () => {
   it('verifyAndIssueToken throws on unsigned challenge', () => {
     const xdr = buildChallenge(clientKeypair.publicKey());
     expect(() => verifyAndIssueToken(xdr)).toThrow('Invalid challenge signature');
+  });
+
+  it('verifyAndIssueToken throws when server signature is absent', () => {
+    // Build a valid-looking challenge from a rogue server (not our SERVER_KEYPAIR)
+    const rogueKeypair = Keypair.random();
+    const rogueAccount = new Account(rogueKeypair.publicKey(), '-1');
+    const tx = new TransactionBuilder(rogueAccount, {
+      fee: BASE_FEE,
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(
+        Operation.manageData({
+          name: 'scoutoff auth',
+          value: crypto.randomBytes(48).toString('base64'),
+          source: clientKeypair.publicKey(),
+        })
+      )
+      .setTimeout(300)
+      .build();
+
+    // Sign with the rogue keypair (not our server) and the client
+    tx.sign(rogueKeypair);
+    tx.sign(clientKeypair);
+    const xdr = tx.toXDR();
+
+    // Should reject because our server did not sign this challenge
+    expect(() => verifyAndIssueToken(xdr)).toThrow('Challenge not signed by server');
   });
 
   // Challenge structure validation tests
