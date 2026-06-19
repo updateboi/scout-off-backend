@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { getEvents } from '../services/indexer';
 import { submitContactPayment, isSubscribed, purchaseSubscription, PaymentError } from '../services/stellar';
+import { getEvents } from '../db';
+import { submitContactPayment, isSubscribed, PaymentError } from '../services/stellar';
 import { ApiResponse } from '../types';
 import { logger } from '../utils/logger';
 
