@@ -9,7 +9,7 @@ function makeReqRes(path = '/test', method = 'GET') {
     emit: (event: string) => listeners[event]?.(),
   } as unknown as Response;
   const next = jest.fn() as NextFunction;
-  return { req, res, next, emit: (e: string) => (res as any).emit(e) };
+  return { req, res, next, emit: (e: string) => listeners[e]?.() };
 }
 
 beforeEach(() => {
