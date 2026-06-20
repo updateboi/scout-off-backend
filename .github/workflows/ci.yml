@@ -32,10 +32,7 @@ jobs:
       - name: Run tests
         run: npm test
         env:
-          CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4
-          JWT_SECRET: test-secret
-          DB_PATH: ':memory:'
-
+          CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC
   contracts:
     name: Soroban Contracts
     runs-on: ubuntu-latest
