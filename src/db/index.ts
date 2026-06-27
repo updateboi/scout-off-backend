@@ -158,6 +158,26 @@ export function getPlayerById(playerId: string): PlayerRow | null {
   ) ?? null;
 }
 
+/**
+ * Returns the number of trial_offer_logged events for a given player.
+ * Used to populate the offerCount field on GET /players/:playerId responses.
+ */
+export function getTrialOfferCount(playerId: string): number {
+  const db = getDb();
+  // Count events where the JSON payload contains the matching player_id
+  const rows = db
+    .prepare("SELECT payload FROM events WHERE type = 'trial_offer_logged'")
+    .all() as { payload: string }[];
+  return rows.filter((r) => {
+    try {
+      const p = JSON.parse(r.payload) as Record<string, unknown>;
+      return p.player_id === playerId || p.playerId === playerId;
+    } catch {
+      return false;
+    }
+  }).length;
+}
+
 export function queryPlayers(opts: QueryPlayersOptions = {}): PlayerRow[] {
   const conditions: string[] = [];
   const params: (string | number)[] = [];
