@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { CID_REGEX } from '../utils/cidValidator';
 import { pinJson } from '../services/ipfs';
 import { serializeIpfsResult } from '../utils/ipfsSerializer';
-import { getEvents, getPlayerById, queryPlayers } from '../db';
+import { getEvents, getPlayerById, queryPlayers, getTrialOfferCount } from '../db';
 import { queryMilestones, updateProfile } from '../services/stellar';
 import { invalidatePlayerCache } from '../services/cache';
 import { ApiResponse } from '../types';
@@ -30,12 +30,36 @@ export const registerSchema = z.union([
 
 export type RegisterPlayerRequest = z.infer<typeof registerSchema>;
 
+/**
+ * All fields that GET /api/players can return.
+ * Unrecognised names supplied via ?fields= are silently ignored.
+ */
+export const PLAYER_LIST_FIELDS = [
+  'player_id',
+  'wallet',
+  'position',
+  'region',
+  'metadataUri',
+  'progress_level',
+  'created_at',
+  'progressLabel',
+  'verificationBadge',
+] as const;
+
+export type PlayerListField = (typeof PLAYER_LIST_FIELDS)[number];
+
 export const filterSchema = z.object({
   region: z.string().optional(),
   position: z.string().optional(),
   minTier: z.coerce.number().int().min(0).max(3).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  /**
+   * Comma-separated list of fields to include in each player object.
+   * Unknown field names are silently ignored.
+   * Omit this parameter (or leave blank) to receive all fields.
+   */
+  fields: z.string().optional(),
 });
 
 /** POST /api/players/register */
@@ -87,6 +111,7 @@ export async function getPlayer(req: Request, res: Response, next: NextFunction)
       return;
     }
     const { tierName, tierDescription } = getTierMeta(row.progress_level);
+    const offerCount = getTrialOfferCount(playerId);
     res.json({
       success: true,
       data: {
@@ -99,6 +124,7 @@ export async function getPlayer(req: Request, res: Response, next: NextFunction)
         created_at: row.created_at,
         tierName,
         tierDescription,
+        offerCount,
       },
     });
   } catch (err) {
@@ -106,7 +132,7 @@ export async function getPlayer(req: Request, res: Response, next: NextFunction)
   }
 }
 
-/** GET /api/players?region=&position=&minTier= */
+/** GET /api/players?region=&position=&minTier=&fields= */
 export async function filterPlayers(req: Request, res: Response, next: NextFunction) {
   try {
     const tierResult = validateMinTier(req.query.minTier);
@@ -115,10 +141,20 @@ export async function filterPlayers(req: Request, res: Response, next: NextFunct
       return;
     }
     const minTier = tierResult.tier;
-    const { region, position, page, pageSize } = filterSchema.parse(req.query);
+    const { region, position, page, pageSize, fields } = filterSchema.parse(req.query);
     const sanitizedRegion = region ? sanitizeInput(region) : undefined;
     const sanitizedPosition = position ? sanitizeInput(position) : undefined;
     const normalizedPosition = sanitizedPosition ? normalizePosition(sanitizedPosition) : undefined;
+
+    // Parse ?fields= into a Set of recognised field names; empty Set means "all fields"
+    const requestedFields = new Set<PlayerListField>(
+      fields
+        ? (fields.split(',').map((f) => f.trim()).filter((f) =>
+            (PLAYER_LIST_FIELDS as readonly string[]).includes(f)
+          ) as PlayerListField[])
+        : []
+    );
+    const projectFields = requestedFields.size > 0;
 
     const rows = queryPlayers({
       region: sanitizedRegion,
@@ -129,16 +165,25 @@ export async function filterPlayers(req: Request, res: Response, next: NextFunct
     const total = rows.length;
     const pages = Math.ceil(total / pageSize);
     const paginated = rows.slice((page - 1) * pageSize, page * pageSize);
-    const enriched = paginated.map((row) => ({
-      player_id: row.player_id,
-      wallet: row.wallet,
-      position: row.position,
-      region: row.region,
-      metadataUri: row.metadata_uri,
-      progress_level: row.progress_level,
-      created_at: row.created_at,
-      ...enrichPlayerResult(row.progress_level),
-    }));
+
+    const enriched = paginated.map((row) => {
+      const full: Record<string, unknown> = {
+        player_id: row.player_id,
+        wallet: row.wallet,
+        position: row.position,
+        region: row.region,
+        metadataUri: row.metadata_uri,
+        progress_level: row.progress_level,
+        created_at: row.created_at,
+        ...enrichPlayerResult(row.progress_level),
+      };
+      if (!projectFields) return full;
+      // Return only the requested (and recognised) fields
+      return Object.fromEntries(
+        [...requestedFields].map((f) => [f, full[f]])
+      );
+    });
+
     res.json({ success: true, data: enriched, total, page, pageSize, pages });
   } catch (err) {
     next(err);
