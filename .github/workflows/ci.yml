@@ -33,6 +33,16 @@ jobs:
         run: npm test
         env:
           CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC
+
+      - name: Build
+        run: npm run build
+        env:
+          CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC
+
+      - name: Validate OpenAPI spec
+        run: npm run validate:openapi
+        env:
+          CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC
   contracts:
     name: Soroban Contracts
     runs-on: ubuntu-latest

@@ -6,11 +6,13 @@ import playerRoutes from './routes/player';
 import scoutRoutes from './routes/scout';
 import validatorRoutes from './routes/validator';
 import adminRoutes from './routes/admin';
+import docsRoutes from './routes/docs';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { securityHeaders } from './middleware/securityHeaders';
 import { correlationId } from './middleware/correlationId';
 import { responseTime } from './middleware/responseTime';
+import { apiVersion } from './middleware/apiVersion';
 import { stellarHealth } from './services/stellar';
 import { checkHealth } from './services/ipfs';
 import { API_PREFIX, API_V1_PREFIX } from './config';
@@ -19,6 +21,7 @@ const app = express();
 
 app.use(cors());
 app.use(correlationId);
+app.use(apiVersion);
 app.use(securityHeaders);
 app.use(responseTime);
 // Configure Express body parser with JSON payload size limit
@@ -108,6 +111,9 @@ app.get('/health/readiness', async (_req, res) => {
 });
 
 app.use('/auth', authRoutes);
+
+// OpenAPI spec + Swagger UI — mounted before the versioned prefixes
+app.use(`${API_PREFIX}/docs`, docsRoutes);
 
 // Mount API routes under both /api (backwards-compatible alias) and /api/v1
 const prefixes = [API_PREFIX, API_V1_PREFIX];
